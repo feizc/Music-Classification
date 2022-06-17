@@ -1,7 +1,8 @@
 import pandas as pd
 import os 
 import requests 
-from pydub import AudioSegment
+from collections import Counter 
+import json 
 
 
 
@@ -12,8 +13,10 @@ def read_excel_data(excel_path):
     return url_list, label_list 
 
 
+
 # convert mp3 to wav formation 
 def mp3_to_wav(mp3_path, wav_path): 
+    from pydub import AudioSegment 
     mp3_file_list = os.listdir(mp3_path) 
     for mp3_name in mp3_file_list: 
         src_path = os.path.join(mp3_path, mp3_name) 
@@ -55,7 +58,6 @@ def label2text_dict_generate(excel_path):
     text_list += df['cat1_name'].values.tolist() 
     id_list += df['cat2_id'].values.tolist() 
     text_list += df['cat2_name'].values.tolist() 
-    print(len(id_list), len(text_list)) 
 
     label2text_dict = dict() 
     for i in range(len(id_list)): 
@@ -82,31 +84,76 @@ def add_text_excel(label_list, label2text_dict):
 
 
 # transfor multi-label to single label  label_num = 908 
-def multi_to_single(url_list, label_list, label2text_dict, wav_path): 
-    label2num_dict = dict() 
-    num2label_dict = dict() 
-
-    i = 0 
-    for label in label2text_dict.keys(): 
-        label2num_dict[label] = i 
-        num2label_dict[i] = label 
-        i += 1 
+def multi_to_single(url_list, label_list, label2text_dict, wav_path, plot_flag=False): 
     
     data = [] 
+    counter_list = []
     for i in range(len(url_list)): 
         file_name = url_to_wav_file(url_list[i]) 
         file_path = os.path.join(wav_path, file_name) 
         t_label_list = label_list[i].split(',') 
         for label in t_label_list: 
-            if label not in label2num_dict.keys():
+            if label not in label2text_dict.keys():
                 continue
             item = dict() 
             item['audio_path'] = file_path 
-            item['label'] = label2num_dict[label] 
-            data.append(item) 
-    print('data size: ', len(data))
-    return data
+            item['label'] = label
+            data.append(item)
+            # counter_list.append(label2text_dict[label])  
+            counter_list.append(label)  
 
+    counter_set = Counter(counter_list) 
+
+    if plot_flag == True: 
+        label_plot(counter_set) 
+    
+    white_list = []
+    for k, v in counter_set.items(): 
+        if v > 60: 
+            white_list.append(k) 
+    
+    label2num_dict = dict() 
+    num2label_dict = dict() 
+    i = 0 
+    for label in white_list: 
+        label2num_dict[label] = i 
+        num2label_dict[i] = label 
+        i += 1 
+    
+    # filter data item 
+    filtered_data = []
+    for item in data: 
+        label = item['label']
+        if label not in white_list:
+            continue 
+        item['label'] = label2num_dict[label] 
+        filtered_data.append(item) 
+    
+    print('data size: ', len(filtered_data)) 
+    with open('./data/meituan/train.json', 'w', encoding='utf-8') as f:
+        json.dump(filtered_data, f, indent=4) 
+
+    text_list = [] 
+    for label in white_list: 
+        text_list.append(label2text_dict[label]) 
+        
+    return text_list 
+
+
+
+def label_plot(counter_set): 
+    import matplotlib.pyplot as plt 
+    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']
+
+    label = []
+    frequency = []
+    for k, v in counter_set.most_common(40): 
+        label.append(k) 
+        frequency.append(v) 
+    
+    plt.xticks(rotation=45)
+    plt.bar(label, frequency, alpha=0.7) 
+    plt.show()
 
 
 
@@ -126,4 +173,4 @@ if __name__ == '__main__':
     # add_text_excel(label_list, label2text_dict) 
 
     # generate single label for model training 
-    data = multi_to_single(url_list, label_list, label2text_dict, wav_path)
+    multi_to_single(url_list, label_list, label2text_dict, wav_path)
