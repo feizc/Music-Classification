@@ -47,7 +47,7 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
-        self.pooling_mode = config.pooling_mode
+        self.pooling_mode = 'mean'
         self.config = config
 
         self.wav2vec2 = Wav2Vec2Model(config)
@@ -92,7 +92,7 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        hidden_states = outputs[0]
+        hidden_states = outputs[0] 
         hidden_states = self.merged_strategy(hidden_states, mode=self.pooling_mode)
         logits = self.classifier(hidden_states)
 

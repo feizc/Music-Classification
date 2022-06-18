@@ -64,12 +64,6 @@ def plot_stack_row(white_list, text_label_list, prediction_label):
 
 
 
-
-    
-
-
-
-
 if __name__ == '__main__':  
     excel_path = './data/meituan/music.xlsx' 
     text_label_list, prediction_label = read_excel(excel_path) 
